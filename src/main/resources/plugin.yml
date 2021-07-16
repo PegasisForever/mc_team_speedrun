@@ -1,0 +1,24 @@
+main: "site.pegasis.mc.team_speedrun.MCTeamSpeedRun"
+version: "1.0"
+name: "Pega-Team-Speedrun"
+author: "Pegasis"
+api-version: "1.16"
+
+commands:
+  start-speedrun:
+    description: Start speedrun.
+    permission: team_speedrun.start
+  end-speedrun:
+    description: End speedrun.
+    permission: team_speedrun.end
+  get-compass:
+    description: Give a compass to the caller.
+    permission: team_speedrun.get_compass
+
+permissions:
+  team_speedrun.*:
+    description: Gives access to start or end the speedrun.
+    default: op
+  team_speedrun.get_compass:
+    description: Gives access to get compass.
+    default: true
