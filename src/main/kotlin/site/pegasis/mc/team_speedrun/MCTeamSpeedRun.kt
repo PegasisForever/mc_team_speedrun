@@ -22,11 +22,14 @@ import org.bukkit.inventory.ItemStack
 import org.bukkit.plugin.java.JavaPlugin
 import org.bukkit.scoreboard.Team
 import java.util.*
+import kotlin.math.min
+import kotlin.math.pow
+import kotlin.math.roundToInt
 
 open class MCTeamSpeedRun : JavaPlugin(), Listener {
     val playerCurrentCompassTargetPlayer = hashMapOf<Player, Player>()
     val onlinePlayers = arrayListOf<Player>()
-    var changeCompassTargetTaskID = -1;
+    private var changeCompassTargetTaskID = -1
 
     var isStarted = false
         set(value) {
@@ -181,10 +184,11 @@ class AttackListener(private val plugin: MCTeamSpeedRun) : Listener {
 
 class DeathListener(private val plugin: MCTeamSpeedRun) : Listener {
     @EventHandler
-    fun onAttack(event: PlayerDeathEvent) {
+    fun onDeath(event: PlayerDeathEvent) {
         if (plugin.isStarted) {
             event.setShouldDropExperience(true)
-            event.newExp = (event.entity.exp / 2).toInt()
+            event.newTotalExp = (event.entity.realExp / 2)
+            event.droppedExp = min(event.droppedExp, event.entity.realExp / 3)
 
             var compass: ItemStack? = null
             val shuffledInventory = event.entity.inventory
@@ -229,3 +233,24 @@ fun Player.reset(isGameStarted: Boolean) {
         inventory.setItem(0, ItemStack(Material.COMPASS))
     }
 }
+
+fun getExpToLevelUp(level: Int): Int {
+    return when {
+        level <= 15 -> 2 * level + 7
+        level <= 30 -> 5 * level - 38
+        else -> 9 * level - 158
+    }
+}
+
+fun getExpAtLevel(level: Int): Int {
+    return when {
+        level <= 16 -> (level.toDouble().pow(2.0) + 6 * level).toInt()
+        level <= 31 -> (2.5 * level.toDouble().pow(2.0) - 40.5 * level + 360.0).toInt()
+        else -> (4.5 * level.toDouble().pow(2.0) - 162.5 * level + 2220.0).toInt()
+    }
+}
+
+val Player.realExp: Int
+    get() {
+        return getExpAtLevel(level) + (getExpToLevelUp(level) * exp).roundToInt()
+    }
