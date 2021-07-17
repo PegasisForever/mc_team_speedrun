@@ -92,9 +92,6 @@ open class MCTeamSpeedRun : JavaPlugin(), Listener {
         server.pluginManager.registerEvents(CompassListener(this), this)
         server.pluginManager.registerEvents(AttackListener(this), this)
         server.pluginManager.registerEvents(DeathListener(this), this)
-        onlinePlayers.forEach { player ->
-            player.reset(isStarted)
-        }
         server.worlds.forEach {
             it.setGameRule(GameRule.DO_WEATHER_CYCLE, false)
         }
@@ -136,6 +133,18 @@ open class MCTeamSpeedRun : JavaPlugin(), Listener {
                 isStarted = true
             }
             return true
+        } else if (command.name == "reset-player") {
+            if (args.size != 1) {
+                sender.sendMessage("${ChatColor.RED}Usage: /reset-player <player>")
+            } else {
+                val player = onlinePlayers.find { it.name == args[0] }
+                if (player == null) {
+                    sender.sendMessage("${ChatColor.RED}Player \"${args[0]}\" doesn't exist.")
+                } else {
+                    player.reset(isStarted)
+                }
+            }
+            return true
         } else if (command.name == "get-compass") {
             if (sender is Player) {
                 sender.inventory.addItem(ItemStack(Material.COMPASS))
@@ -154,8 +163,6 @@ class PlayerJoinLeaveListener(private val plugin: MCTeamSpeedRun) : Listener {
 
         if (plugin.isStarted) {
             event.player.sendMessage("Speedrun is in progress!")
-        } else {
-            event.player.reset(false)
         }
     }
 

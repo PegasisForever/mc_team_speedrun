@@ -14,6 +14,9 @@ commands:
   resume-speedrun:
     description: Resume speedrun.
     permission: team_speedrun.resume
+  reset-player:
+    description: Resume speedrun.
+    permission: team_speedrun.reset_player
   get-compass:
     description: Give a compass to the caller.
     permission: team_speedrun.get_compass
