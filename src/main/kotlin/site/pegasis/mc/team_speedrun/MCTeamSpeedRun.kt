@@ -107,7 +107,7 @@ open class MCTeamSpeedRun : JavaPlugin(), Listener {
                 }
                 onlinePlayers.forEach { player ->
                     player.reset(true)
-                    player.teleport(player.world.spawnLocation)
+                    player.teleport(server.worlds[0].spawnLocation)
                     nextCompassTarget(player)
                     player.sendMessage("Speedrun started!")
                 }
