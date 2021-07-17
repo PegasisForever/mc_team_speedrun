@@ -1,9 +1,6 @@
 package site.pegasis.mc.team_speedrun
 
-import org.bukkit.Bukkit
-import org.bukkit.GameMode
-import org.bukkit.GameRule
-import org.bukkit.Material
+import org.bukkit.*
 import org.bukkit.attribute.Attribute
 import org.bukkit.command.Command
 import org.bukkit.command.CommandSender
@@ -19,6 +16,7 @@ import org.bukkit.event.player.PlayerInteractEvent
 import org.bukkit.event.player.PlayerJoinEvent
 import org.bukkit.event.player.PlayerQuitEvent
 import org.bukkit.inventory.ItemStack
+import org.bukkit.inventory.meta.CompassMeta
 import org.bukkit.plugin.java.JavaPlugin
 import org.bukkit.scoreboard.Team
 import java.util.*
@@ -37,9 +35,19 @@ open class MCTeamSpeedRun : JavaPlugin(), Listener {
                 val changeCompassTarget = {
                     Bukkit.getOnlinePlayers().forEach { player ->
                         val playerTeam = player.team
-                        val currentTarget = playerCurrentCompassTargetPlayer[player]?.location
+                        val currentTargetPlayer = playerCurrentCompassTargetPlayer[player]
+                        val currentTarget = currentTargetPlayer?.location
                         if (playerTeam != null && currentTarget != null) {
                             player.compassTarget = currentTarget
+                            player.inventory
+                                .filter { it?.type == Material.COMPASS }
+                                .forEach { compass ->
+                                    compass.itemMeta = (compass.itemMeta as CompassMeta).apply {
+                                        lodestone = currentTarget
+                                        isLodestoneTracked = false
+                                        setDisplayName("${ChatColor.RESET}Compass: Tracking ${currentTargetPlayer.team?.color ?: ""}${currentTargetPlayer.name}")
+                                    }
+                                }
                         }
                     }
                 }
@@ -114,6 +122,7 @@ open class MCTeamSpeedRun : JavaPlugin(), Listener {
                 sender.sendMessage("Speedrun haven't started!")
             } else {
                 isStarted = false
+                sender.sendMessage("Speedrun ended!")
             }
             return true
         } else if (command.name == "resume-speedrun") {
