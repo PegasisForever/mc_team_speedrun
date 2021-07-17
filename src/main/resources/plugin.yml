@@ -11,6 +11,9 @@ commands:
   end-speedrun:
     description: End speedrun.
     permission: team_speedrun.end
+  resume-speedrun:
+    description: Resume speedrun.
+    permission: team_speedrun.resume
   get-compass:
     description: Give a compass to the caller.
     permission: team_speedrun.get_compass

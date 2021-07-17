@@ -34,15 +34,6 @@ open class MCTeamSpeedRun : JavaPlugin(), Listener {
     var isStarted = false
         set(value) {
             if (value) {
-                server.worlds.forEach {
-                    it.time = 0
-                }
-                onlinePlayers.forEach { player ->
-                    player.reset(true)
-                    player.teleport(player.world.spawnLocation)
-                    nextCompassTarget(player)
-                    player.sendMessage("Speedrun started!")
-                }
                 val changeCompassTarget = {
                     Bukkit.getOnlinePlayers().forEach { player ->
                         val playerTeam = player.team
@@ -83,7 +74,7 @@ open class MCTeamSpeedRun : JavaPlugin(), Listener {
             playerCurrentCompassTargetPlayer.remove(player)
         } else {
             playerCurrentCompassTargetPlayer[player] = newTargetPlayer
-            player.sendActionBar("Now tracking: ${newTargetPlayer.name}")
+            player.sendActionBar("Now tracking: ${newTargetPlayer.team!!.color}${newTargetPlayer.name}")
         }
     }
 
@@ -106,6 +97,15 @@ open class MCTeamSpeedRun : JavaPlugin(), Listener {
             if (isStarted) {
                 sender.sendMessage("Speedrun is already started!")
             } else {
+                server.worlds.forEach {
+                    it.time = 0
+                }
+                onlinePlayers.forEach { player ->
+                    player.reset(true)
+                    player.teleport(player.world.spawnLocation)
+                    nextCompassTarget(player)
+                    player.sendMessage("Speedrun started!")
+                }
                 isStarted = true
             }
             return true
@@ -114,6 +114,17 @@ open class MCTeamSpeedRun : JavaPlugin(), Listener {
                 sender.sendMessage("Speedrun haven't started!")
             } else {
                 isStarted = false
+            }
+            return true
+        } else if (command.name == "resume-speedrun") {
+            if (isStarted) {
+                sender.sendMessage("Speedrun is already started!")
+            } else {
+                onlinePlayers.forEach { player ->
+                    nextCompassTarget(player)
+                    player.sendMessage("Speedrun started!")
+                }
+                isStarted = true
             }
             return true
         } else if (command.name == "get-compass") {
@@ -131,9 +142,11 @@ class PlayerJoinLeaveListener(private val plugin: MCTeamSpeedRun) : Listener {
     @EventHandler
     fun onLogin(event: PlayerJoinEvent) {
         plugin.onlinePlayers.add(event.player)
-        event.player.reset(plugin.isStarted)
+
         if (plugin.isStarted) {
             event.player.sendMessage("Speedrun is in progress!")
+        } else {
+            event.player.reset(false)
         }
     }
 
