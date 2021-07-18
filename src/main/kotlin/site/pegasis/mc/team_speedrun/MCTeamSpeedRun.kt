@@ -4,6 +4,7 @@ import org.bukkit.*
 import org.bukkit.attribute.Attribute
 import org.bukkit.command.Command
 import org.bukkit.command.CommandSender
+import org.bukkit.enchantments.Enchantment
 import org.bukkit.entity.Arrow
 import org.bukkit.entity.Player
 import org.bukkit.event.EventHandler
@@ -15,6 +16,7 @@ import org.bukkit.event.player.PlayerDropItemEvent
 import org.bukkit.event.player.PlayerInteractEvent
 import org.bukkit.event.player.PlayerJoinEvent
 import org.bukkit.event.player.PlayerQuitEvent
+import org.bukkit.inventory.ItemFlag
 import org.bukkit.inventory.ItemStack
 import org.bukkit.inventory.meta.CompassMeta
 import org.bukkit.plugin.java.JavaPlugin
@@ -43,9 +45,15 @@ open class MCTeamSpeedRun : JavaPlugin(), Listener {
                                 .filter { it?.type == Material.COMPASS }
                                 .forEach { compass ->
                                     compass.itemMeta = (compass.itemMeta as CompassMeta).apply {
-                                        lodestone = currentTarget
-                                        isLodestoneTracked = false
-                                        setDisplayName("${ChatColor.RESET}Compass: Tracking ${currentTargetPlayer.team?.color ?: ""}${currentTargetPlayer.name}")
+                                        if (player.world.environment != World.Environment.NORMAL) {
+                                            if (hasLodestone() && lodestone?.world != player.world && currentTarget.world != player.world) {
+                                                // target isn't in the same world as the player
+                                            } else {
+                                                lodestone = currentTarget
+                                                isLodestoneTracked = false
+                                            }
+                                        }
+                                        setDisplayName("${ChatColor.RESET}${ChatColor.WHITE}Compass: Tracking ${currentTargetPlayer.team?.color ?: ""}${currentTargetPlayer.name}")
                                     }
                                 }
                         }
@@ -131,7 +139,7 @@ open class MCTeamSpeedRun : JavaPlugin(), Listener {
             } else {
                 onlinePlayers.forEach { player ->
                     nextCompassTarget(player)
-                    player.sendMessage("Speedrun started!")
+                    player.sendMessage("Speedrun resumed!")
                 }
                 isStarted = true
             }
@@ -150,12 +158,19 @@ open class MCTeamSpeedRun : JavaPlugin(), Listener {
             return true
         } else if (command.name == "get-compass") {
             if (sender is Player) {
-                sender.inventory.addItem(ItemStack(Material.COMPASS))
+                sender.inventory.addItem(getCompassItemStack())
             } else {
                 sender.sendMessage("Only a player can use this command!")
             }
         }
         return false
+    }
+}
+
+fun getCompassItemStack() = ItemStack(Material.COMPASS).apply {
+    addUnsafeEnchantment(Enchantment.DAMAGE_ALL, 1)
+    itemMeta = itemMeta.apply {
+        addItemFlags(ItemFlag.HIDE_ENCHANTS)
     }
 }
 
@@ -265,7 +280,7 @@ fun Player.reset(isGameStarted: Boolean) {
         inventory.setItem(i, null)
     }
     if (isGameStarted) {
-        inventory.setItem(0, ItemStack(Material.COMPASS))
+        inventory.setItem(0, getCompassItemStack())
     }
 }
 
