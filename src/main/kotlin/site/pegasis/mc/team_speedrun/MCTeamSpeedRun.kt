@@ -95,6 +95,9 @@ open class MCTeamSpeedRun : JavaPlugin(), Listener {
         server.worlds.forEach {
             it.setGameRule(GameRule.DO_WEATHER_CYCLE, false)
         }
+        onlinePlayers.forEach {
+            it.gameMode = GameMode.ADVENTURE
+        }
     }
 
     override fun onCommand(sender: CommandSender, command: Command, label: String, args: Array<out String>): Boolean {
@@ -163,6 +166,9 @@ class PlayerJoinLeaveListener(private val plugin: MCTeamSpeedRun) : Listener {
 
         if (plugin.isStarted) {
             event.player.sendMessage("Speedrun is in progress!")
+            event.player.gameMode = GameMode.SURVIVAL
+        } else {
+            event.player.gameMode = GameMode.ADVENTURE
         }
     }
 
