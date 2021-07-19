@@ -33,8 +33,8 @@ import kotlin.math.roundToInt
 import kotlin.random.Random
 
 open class MCTeamSpeedRun : JavaPlugin(), Listener {
-    val playerCurrentCompassTargetPlayer = hashMapOf<Player, Player>()
-    val onlinePlayers = arrayListOf<Player>()
+    private val playerCurrentCompassTargetPlayer = hashMapOf<Player, Player>()
+    private val onlinePlayers = arrayListOf<Player>()
     private var changeCompassTargetTaskID = -1
 
     var isStarted = false
@@ -68,38 +68,9 @@ open class MCTeamSpeedRun : JavaPlugin(), Listener {
             field = value
         }
 
-    fun nextCompassTarget(player: Player) {
-        if (player.team == null) return
-        val currentTargetPlayer = playerCurrentCompassTargetPlayer[player]
-        val rotateOffset = if (currentTargetPlayer == null) {
-            0
-        } else {
-            val index = onlinePlayers.indexOfFirst { it.name == currentTargetPlayer.name }
-            if (index == -1) {
-                0
-            } else {
-                -(index + 1)
-            }
-        }
-
-        val players = onlinePlayers.clone() as List<Player>
-        Collections.rotate(players, rotateOffset)
-
-        val newTargetPlayer = players.find { it.team != null && it.team?.name != player.team?.name }
-        if (newTargetPlayer == null) {
-            playerCurrentCompassTargetPlayer.remove(player)
-        } else {
-            playerCurrentCompassTargetPlayer[player] = newTargetPlayer
-        }
-    }
-
     override fun onEnable() {
         onlinePlayers.addAll(server.onlinePlayers)
-        server.pluginManager.registerEvents(PlayerJoinLeaveListener(this), this)
-        server.pluginManager.registerEvents(CompassListener(this), this)
-        server.pluginManager.registerEvents(AttackListener(this), this)
-        server.pluginManager.registerEvents(DeathListener(this), this)
-        server.pluginManager.registerEvents(TheEndListener(this), this)
+        server.pluginManager.registerEvents(this,this)
         server.worlds.forEach {
             it.setGameRule(GameRule.DO_WEATHER_CYCLE, false)
         }
@@ -166,23 +137,12 @@ open class MCTeamSpeedRun : JavaPlugin(), Listener {
         }
         return false
     }
-}
 
-fun getCompassItemStack() = ItemStack(Material.COMPASS).apply {
-
-    addUnsafeEnchantment(Enchantment.DAMAGE_ALL, 1)
-    itemMeta = (itemMeta as CompassMeta).apply {
-        isLodestoneTracked = false
-        addItemFlags(ItemFlag.HIDE_ENCHANTS)
-    }
-}
-
-class PlayerJoinLeaveListener(private val plugin: MCTeamSpeedRun) : Listener {
     @EventHandler
-    fun onLogin(event: PlayerJoinEvent) {
-        plugin.onlinePlayers.add(event.player)
+    fun onPlayerJoin(event: PlayerJoinEvent) {
+        onlinePlayers.add(event.player)
 
-        if (plugin.isStarted) {
+        if (isStarted) {
             event.player.sendMessage("Speedrun is in progress!")
             event.player.gameMode = GameMode.SURVIVAL
         } else {
@@ -192,44 +152,58 @@ class PlayerJoinLeaveListener(private val plugin: MCTeamSpeedRun) : Listener {
 
     @EventHandler
     fun onPlayerQuit(event: PlayerQuitEvent) {
-        plugin.onlinePlayers.remove(event.player)
-        plugin.playerCurrentCompassTargetPlayer
+        onlinePlayers.remove(event.player)
+        playerCurrentCompassTargetPlayer
             .filter { (_, targetPlayer) -> targetPlayer == event.player }
-            .forEach { (player, _) -> plugin.nextCompassTarget(player) }
+            .forEach { (player, _) -> nextCompassTarget(player) }
     }
 
-}
-
-class CompassListener(private val plugin: MCTeamSpeedRun) : Listener {
     @EventHandler
     fun onRightClick(event: PlayerInteractEvent) {
-        if (plugin.isStarted && event.item?.type == Material.COMPASS) {
-            plugin.nextCompassTarget(event.player)
+        if (isStarted && event.item?.type == Material.COMPASS) {
+            nextCompassTarget(event.player)
         }
     }
 
     @EventHandler
     fun onDrop(event: PlayerDropItemEvent) {
-        if (plugin.isStarted && event.itemDrop.itemStack.type == Material.COMPASS) {
+        if (isStarted && event.itemDrop.itemStack.type == Material.COMPASS) {
             event.isCancelled = true
         }
     }
-}
 
-class AttackListener(private val plugin: MCTeamSpeedRun) : Listener {
     @EventHandler
     fun onAttack(event: EntityDamageByEntityEvent) {
-        if (!plugin.isStarted && event.attackerPlayer != null) {
+        if (!isStarted && event.attackerPlayer != null) {
             event.isCancelled = true
+        }else if (isStarted) {
+            val attackerPlayer = event.attackerPlayer
+            if (attackerPlayer != null) {
+                if (event.entity.type == EntityType.ENDER_CRYSTAL && event.entity.location.world.environment == World.Environment.THE_END) {
+                    onlinePlayers.forEach {
+                        it.sendMessage("${attackerPlayer.team?.color ?: ChatColor.LIGHT_PURPLE}${attackerPlayer.name}${ChatColor.LIGHT_PURPLE} destroyed an ender crystal!")
+                    }
+                } else if (event.entity.type == EntityType.ENDER_DRAGON) {
+                    val df = DecimalFormat("#.##")
+                    df.roundingMode = RoundingMode.HALF_EVEN
+                    val dragonHealthPercent = (event.entity as EnderDragon).run { health / getAttribute(Attribute.GENERIC_MAX_HEALTH)!!.value } * 100
+                    val healthColor = when {
+                        dragonHealthPercent > 70 -> ChatColor.GREEN
+                        dragonHealthPercent > 35 -> ChatColor.YELLOW
+                        else -> ChatColor.RED
+                    }
+                    val healthText = "${healthColor}${df.format(dragonHealthPercent)}%${ChatColor.LIGHT_PURPLE}"
+                    onlinePlayers.forEach {
+                        it.sendMessage("${attackerPlayer.team?.color ?: ChatColor.WHITE}${attackerPlayer.name}${ChatColor.RESET} is attacking the ender dragon! Dragon health: $healthText")
+                    }
+                }
+            }
         }
     }
-}
 
-
-class DeathListener(private val plugin: MCTeamSpeedRun) : Listener {
     @EventHandler
     fun onPlayerDeath(event: PlayerDeathEvent) {
-        if (plugin.isStarted) {
+        if (isStarted) {
             event.setShouldDropExperience(true)
             event.newTotalExp = (event.entity.realExp / 2)
             event.droppedExp = min(event.droppedExp, event.entity.realExp / 3)
@@ -261,87 +235,91 @@ class DeathListener(private val plugin: MCTeamSpeedRun) : Listener {
 
     @EventHandler
     fun onEnderManDeath(event: EntityDeathEvent) {
-        if (plugin.isStarted && event.entity.type == EntityType.ENDERMAN) {
+        if (isStarted && event.entity.type == EntityType.ENDERMAN) {
             event.drops.clear()
             event.drops.add(ItemStack(Material.ENDER_PEARL, Random.nextInt(1, 3)))
         }
     }
-}
 
-class TheEndListener(private val plugin: MCTeamSpeedRun) : Listener {
-    @EventHandler
-    fun onDamaged(event: EntityDamageByEntityEvent) {
-        if (plugin.isStarted) {
-            val attackerPlayer = event.attackerPlayer
-            if (attackerPlayer != null) {
-                if (event.entity.type == EntityType.ENDER_CRYSTAL && event.entity.location.world.environment == World.Environment.THE_END) {
-                    plugin.onlinePlayers.forEach {
-                        it.sendMessage("${attackerPlayer.team?.color ?: ChatColor.LIGHT_PURPLE}${attackerPlayer.name}${ChatColor.LIGHT_PURPLE} destroyed an ender crystal!")
-                    }
-                } else if (event.entity.type == EntityType.ENDER_DRAGON) {
-                    val df = DecimalFormat("#.##")
-                    df.roundingMode = RoundingMode.HALF_EVEN
-                    val dragonHealthPercent = (event.entity as EnderDragon).run { health / getAttribute(Attribute.GENERIC_MAX_HEALTH)!!.value } * 100
-                    val healthColor = when {
-                        dragonHealthPercent > 70 -> ChatColor.GREEN
-                        dragonHealthPercent > 35 -> ChatColor.YELLOW
-                        else -> ChatColor.RED
-                    }
-                    val healthText = "${healthColor}${df.format(dragonHealthPercent)}%${ChatColor.LIGHT_PURPLE}"
-                    plugin.onlinePlayers.forEach {
-                        it.sendMessage("${attackerPlayer.team?.color ?: ChatColor.WHITE}${attackerPlayer.name}${ChatColor.RESET} is attacking the ender dragon! Dragon health: $healthText")
-                    }
-                }
+    private fun nextCompassTarget(player: Player) {
+        if (player.team == null) return
+        val currentTargetPlayer = playerCurrentCompassTargetPlayer[player]
+        val rotateOffset = if (currentTargetPlayer == null) {
+            0
+        } else {
+            val index = onlinePlayers.indexOfFirst { it.name == currentTargetPlayer.name }
+            if (index == -1) {
+                0
+            } else {
+                -(index + 1)
             }
         }
-    }
-}
 
-val Player.team: Team?
-    get() = this.scoreboard.getEntryTeam(this.name)
+        val players = onlinePlayers.clone() as List<Player>
+        Collections.rotate(players, rotateOffset)
 
-fun Player.reset(isGameStarted: Boolean) {
-    gameMode = if (isGameStarted) GameMode.SURVIVAL else GameMode.ADVENTURE
-    activePotionEffects.forEach { removePotionEffect(it.type) }
-    level = 0
-    exp = 0f
-    foodLevel = 20
-    health = getAttribute(Attribute.GENERIC_MAX_HEALTH)!!.value
-    for (i in 0..40) {
-        inventory.setItem(i, null)
-    }
-    if (isGameStarted) {
-        inventory.setItem(0, getCompassItemStack())
-    }
-}
-
-fun getExpToLevelUp(level: Int): Int {
-    return when {
-        level <= 15 -> 2 * level + 7
-        level <= 30 -> 5 * level - 38
-        else -> 9 * level - 158
-    }
-}
-
-fun getExpAtLevel(level: Int): Int {
-    return when {
-        level <= 16 -> (level.toDouble().pow(2.0) + 6 * level).toInt()
-        level <= 31 -> (2.5 * level.toDouble().pow(2.0) - 40.5 * level + 360.0).toInt()
-        else -> (4.5 * level.toDouble().pow(2.0) - 162.5 * level + 2220.0).toInt()
-    }
-}
-
-val Player.realExp: Int
-    get() {
-        return getExpAtLevel(level) + (getExpToLevelUp(level) * exp).roundToInt()
-    }
-
-val EntityDamageByEntityEvent.attackerPlayer: Player?
-    get() {
-        val isShoot = cause == EntityDamageEvent.DamageCause.PROJECTILE
-        return if (isShoot) {
-            (((damager as? Arrow)?.shooter) as? Player)
+        val newTargetPlayer = players.find { it.team != null && it.team?.name != player.team?.name }
+        if (newTargetPlayer == null) {
+            playerCurrentCompassTargetPlayer.remove(player)
         } else {
-            damager as? Player
+            playerCurrentCompassTargetPlayer[player] = newTargetPlayer
         }
     }
+
+    private fun getCompassItemStack() = ItemStack(Material.COMPASS).apply {
+        addUnsafeEnchantment(Enchantment.DAMAGE_ALL, 1)
+        itemMeta = (itemMeta as CompassMeta).apply {
+            isLodestoneTracked = false
+            addItemFlags(ItemFlag.HIDE_ENCHANTS)
+        }
+    }
+
+    private val Player.team: Team?
+        get() = this.scoreboard.getEntryTeam(this.name)
+
+    private fun Player.reset(isGameStarted: Boolean) {
+        gameMode = if (isGameStarted) GameMode.SURVIVAL else GameMode.ADVENTURE
+        activePotionEffects.forEach { removePotionEffect(it.type) }
+        level = 0
+        exp = 0f
+        foodLevel = 20
+        health = getAttribute(Attribute.GENERIC_MAX_HEALTH)!!.value
+        for (i in 0..40) {
+            inventory.setItem(i, null)
+        }
+        if (isGameStarted) {
+            inventory.setItem(0, getCompassItemStack())
+        }
+    }
+
+    private fun getExpToLevelUp(level: Int): Int {
+        return when {
+            level <= 15 -> 2 * level + 7
+            level <= 30 -> 5 * level - 38
+            else -> 9 * level - 158
+        }
+    }
+
+    private fun getExpAtLevel(level: Int): Int {
+        return when {
+            level <= 16 -> (level.toDouble().pow(2.0) + 6 * level).toInt()
+            level <= 31 -> (2.5 * level.toDouble().pow(2.0) - 40.5 * level + 360.0).toInt()
+            else -> (4.5 * level.toDouble().pow(2.0) - 162.5 * level + 2220.0).toInt()
+        }
+    }
+
+    private val Player.realExp: Int
+        get() {
+            return getExpAtLevel(level) + (getExpToLevelUp(level) * exp).roundToInt()
+        }
+
+    private val EntityDamageByEntityEvent.attackerPlayer: Player?
+        get() {
+            val isShoot = cause == EntityDamageEvent.DamageCause.PROJECTILE
+            return if (isShoot) {
+                (((damager as? Arrow)?.shooter) as? Player)
+            } else {
+                damager as? Player
+            }
+        }
+}
