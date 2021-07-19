@@ -30,7 +30,6 @@ import java.util.*
 import kotlin.math.min
 import kotlin.math.pow
 import kotlin.math.roundToInt
-import kotlin.random.Random
 
 open class MCTeamSpeedRun : JavaPlugin(), Listener {
     private val playerCurrentCompassTargetPlayer = hashMapOf<Player, Player>()
@@ -70,7 +69,7 @@ open class MCTeamSpeedRun : JavaPlugin(), Listener {
 
     override fun onEnable() {
         onlinePlayers.addAll(server.onlinePlayers)
-        server.pluginManager.registerEvents(this,this)
+        server.pluginManager.registerEvents(this, this)
         server.worlds.forEach {
             it.setGameRule(GameRule.DO_WEATHER_CYCLE, false)
         }
@@ -176,7 +175,7 @@ open class MCTeamSpeedRun : JavaPlugin(), Listener {
     fun onAttack(event: EntityDamageByEntityEvent) {
         if (!isStarted && event.attackerPlayer != null) {
             event.isCancelled = true
-        }else if (isStarted) {
+        } else if (isStarted) {
             val attackerPlayer = event.attackerPlayer
             if (attackerPlayer != null) {
                 if (event.entity.type == EntityType.ENDER_CRYSTAL && event.entity.location.world.environment == World.Environment.THE_END) {
@@ -236,8 +235,11 @@ open class MCTeamSpeedRun : JavaPlugin(), Listener {
     @EventHandler
     fun onEnderManDeath(event: EntityDeathEvent) {
         if (isStarted && event.entity.type == EntityType.ENDERMAN) {
-            event.drops.clear()
-            event.drops.add(ItemStack(Material.ENDER_PEARL, Random.nextInt(1, 3)))
+            event.drops.forEach { itemStack ->
+                if (itemStack.type == Material.ENDER_PEARL) {
+                    itemStack.amount++
+                }
+            }
         }
     }
 
