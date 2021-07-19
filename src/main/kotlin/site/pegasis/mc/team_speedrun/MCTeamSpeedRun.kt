@@ -6,6 +6,8 @@ import org.bukkit.command.Command
 import org.bukkit.command.CommandSender
 import org.bukkit.enchantments.Enchantment
 import org.bukkit.entity.Arrow
+import org.bukkit.entity.EnderDragon
+import org.bukkit.entity.EntityType
 import org.bukkit.entity.Player
 import org.bukkit.event.EventHandler
 import org.bukkit.event.Listener
@@ -21,6 +23,8 @@ import org.bukkit.inventory.ItemStack
 import org.bukkit.inventory.meta.CompassMeta
 import org.bukkit.plugin.java.JavaPlugin
 import org.bukkit.scoreboard.Team
+import java.math.RoundingMode
+import java.text.DecimalFormat
 import java.util.*
 import kotlin.math.min
 import kotlin.math.pow
@@ -93,6 +97,7 @@ open class MCTeamSpeedRun : JavaPlugin(), Listener {
         server.pluginManager.registerEvents(CompassListener(this), this)
         server.pluginManager.registerEvents(AttackListener(this), this)
         server.pluginManager.registerEvents(DeathListener(this), this)
+        server.pluginManager.registerEvents(TheEndListener(this), this)
         server.worlds.forEach {
             it.setGameRule(GameRule.DO_WEATHER_CYCLE, false)
         }
@@ -212,19 +217,12 @@ class CompassListener(private val plugin: MCTeamSpeedRun) : Listener {
 class AttackListener(private val plugin: MCTeamSpeedRun) : Listener {
     @EventHandler
     fun onAttack(event: EntityDamageByEntityEvent) {
-        if (!plugin.isStarted) {
-            val isShoot = event.cause == EntityDamageEvent.DamageCause.PROJECTILE
-            val attacker = if (isShoot) {
-                (((event.damager as? Arrow)?.shooter) as? Player)
-            } else {
-                event.damager
-            }
-            if (attacker is Player) {
-                event.isCancelled = true
-            }
+        if (!plugin.isStarted && event.attackerPlayer != null) {
+            event.isCancelled = true
         }
     }
 }
+
 
 class DeathListener(private val plugin: MCTeamSpeedRun) : Listener {
     @EventHandler
@@ -255,6 +253,35 @@ class DeathListener(private val plugin: MCTeamSpeedRun) : Listener {
 
             if (compass != null) {
                 event.itemsToKeep.add(compass)
+            }
+        }
+    }
+}
+
+class TheEndListener(private val plugin: MCTeamSpeedRun) : Listener {
+    @EventHandler
+    fun onDamaged(event: EntityDamageByEntityEvent) {
+        if (plugin.isStarted) {
+            val attackerPlayer = event.attackerPlayer
+            if (attackerPlayer != null) {
+                if (event.entity.type == EntityType.ENDER_CRYSTAL && event.entity.location.world.environment == World.Environment.THE_END) {
+                    plugin.onlinePlayers.forEach {
+                        it.sendMessage("${attackerPlayer.team?.color ?: ChatColor.LIGHT_PURPLE}${attackerPlayer.name}${ChatColor.LIGHT_PURPLE} destroyed an ender crystal!")
+                    }
+                } else if (event.entity.type == EntityType.ENDER_DRAGON) {
+                    val df = DecimalFormat("#.##")
+                    df.roundingMode = RoundingMode.HALF_EVEN
+                    val dragonHealthPercent = (event.entity as EnderDragon).run { health / getAttribute(Attribute.GENERIC_MAX_HEALTH)!!.value } * 100
+                    val healthColor = when {
+                        dragonHealthPercent > 70 -> ChatColor.GREEN
+                        dragonHealthPercent > 35 -> ChatColor.YELLOW
+                        else -> ChatColor.RED
+                    }
+                    val healthText = "${healthColor}${df.format(dragonHealthPercent)}%${ChatColor.LIGHT_PURPLE}"
+                    plugin.onlinePlayers.forEach {
+                        it.sendMessage("${attackerPlayer.team?.color ?: ChatColor.WHITE}${attackerPlayer.name}${ChatColor.RESET} is attacking the ender dragon! Dragon health: $healthText")
+                    }
+                }
             }
         }
     }
@@ -297,4 +324,14 @@ fun getExpAtLevel(level: Int): Int {
 val Player.realExp: Int
     get() {
         return getExpAtLevel(level) + (getExpToLevelUp(level) * exp).roundToInt()
+    }
+
+val EntityDamageByEntityEvent.attackerPlayer: Player?
+    get() {
+        val isShoot = cause == EntityDamageEvent.DamageCause.PROJECTILE
+        return if (isShoot) {
+            (((damager as? Arrow)?.shooter) as? Player)
+        } else {
+            damager as? Player
+        }
     }
