@@ -13,6 +13,7 @@ import org.bukkit.event.EventHandler
 import org.bukkit.event.Listener
 import org.bukkit.event.entity.EntityDamageByEntityEvent
 import org.bukkit.event.entity.EntityDamageEvent
+import org.bukkit.event.entity.EntityDeathEvent
 import org.bukkit.event.entity.PlayerDeathEvent
 import org.bukkit.event.player.PlayerDropItemEvent
 import org.bukkit.event.player.PlayerInteractEvent
@@ -29,6 +30,7 @@ import java.util.*
 import kotlin.math.min
 import kotlin.math.pow
 import kotlin.math.roundToInt
+import kotlin.random.Random
 
 open class MCTeamSpeedRun : JavaPlugin(), Listener {
     val playerCurrentCompassTargetPlayer = hashMapOf<Player, Player>()
@@ -226,7 +228,7 @@ class AttackListener(private val plugin: MCTeamSpeedRun) : Listener {
 
 class DeathListener(private val plugin: MCTeamSpeedRun) : Listener {
     @EventHandler
-    fun onDeath(event: PlayerDeathEvent) {
+    fun onPlayerDeath(event: PlayerDeathEvent) {
         if (plugin.isStarted) {
             event.setShouldDropExperience(true)
             event.newTotalExp = (event.entity.realExp / 2)
@@ -254,6 +256,14 @@ class DeathListener(private val plugin: MCTeamSpeedRun) : Listener {
             if (compass != null) {
                 event.itemsToKeep.add(compass)
             }
+        }
+    }
+
+    @EventHandler
+    fun onEnderManDeath(event: EntityDeathEvent) {
+        if (plugin.isStarted && event.entity.type == EntityType.ENDERMAN) {
+            event.drops.clear()
+            event.drops.add(ItemStack(Material.ENDER_PEARL, Random.nextInt(1, 3)))
         }
     }
 }
