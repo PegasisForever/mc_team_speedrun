@@ -45,15 +45,9 @@ open class MCTeamSpeedRun : JavaPlugin(), Listener {
                                 .filter { it?.type == Material.COMPASS }
                                 .forEach { compass ->
                                     compass.itemMeta = (compass.itemMeta as CompassMeta).apply {
-                                        if (player.world.environment != World.Environment.NORMAL) {
-                                            if (hasLodestone() && lodestone?.world != player.world && currentTarget.world != player.world) {
-                                                // target isn't in the same world as the player
-                                            } else {
-                                                lodestone = currentTarget
-                                                isLodestoneTracked = false
-                                            }
-                                        }
-                                        setDisplayName("${ChatColor.RESET}${ChatColor.WHITE}Compass: Tracking ${currentTargetPlayer.team?.color ?: ""}${currentTargetPlayer.name}")
+                                        lodestone = currentTarget
+                                        isLodestoneTracked = false
+                                        setDisplayName("${ChatColor.RESET}${ChatColor.WHITE}Compass: Tracking ${currentTargetPlayer.team?.color ?: ChatColor.WHITE}${currentTargetPlayer.name}")
                                     }
                                 }
                         }
@@ -74,7 +68,7 @@ open class MCTeamSpeedRun : JavaPlugin(), Listener {
         val rotateOffset = if (currentTargetPlayer == null) {
             0
         } else {
-            val index = server.onlinePlayers.indexOf(currentTargetPlayer)
+            val index = onlinePlayers.indexOfFirst { it.name == currentTargetPlayer.name }
             if (index == -1) {
                 0
             } else {
@@ -85,12 +79,11 @@ open class MCTeamSpeedRun : JavaPlugin(), Listener {
         val players = onlinePlayers.clone() as List<Player>
         Collections.rotate(players, rotateOffset)
 
-        val newTargetPlayer = players.find { it.team != null && it.team != player.team }
+        val newTargetPlayer = players.find { it.team != null && it.team?.name != player.team?.name }
         if (newTargetPlayer == null) {
             playerCurrentCompassTargetPlayer.remove(player)
         } else {
             playerCurrentCompassTargetPlayer[player] = newTargetPlayer
-            player.sendActionBar("Now tracking: ${newTargetPlayer.team!!.color}${newTargetPlayer.name}")
         }
     }
 
@@ -139,6 +132,7 @@ open class MCTeamSpeedRun : JavaPlugin(), Listener {
             } else {
                 onlinePlayers.forEach { player ->
                     nextCompassTarget(player)
+                    player.gameMode = GameMode.SURVIVAL
                     player.sendMessage("Speedrun resumed!")
                 }
                 isStarted = true
@@ -168,8 +162,10 @@ open class MCTeamSpeedRun : JavaPlugin(), Listener {
 }
 
 fun getCompassItemStack() = ItemStack(Material.COMPASS).apply {
+
     addUnsafeEnchantment(Enchantment.DAMAGE_ALL, 1)
-    itemMeta = itemMeta.apply {
+    itemMeta = (itemMeta as CompassMeta).apply {
+        isLodestoneTracked = false
         addItemFlags(ItemFlag.HIDE_ENCHANTS)
     }
 }
@@ -190,11 +186,9 @@ class PlayerJoinLeaveListener(private val plugin: MCTeamSpeedRun) : Listener {
     @EventHandler
     fun onPlayerQuit(event: PlayerQuitEvent) {
         plugin.onlinePlayers.remove(event.player)
-        plugin.playerCurrentCompassTargetPlayer.forEach { (player, targetPlayer) ->
-            if (targetPlayer == event.player) {
-                plugin.nextCompassTarget(player)
-            }
-        }
+        plugin.playerCurrentCompassTargetPlayer
+            .filter { (_, targetPlayer) -> targetPlayer == event.player }
+            .forEach { (player, _) -> plugin.nextCompassTarget(player) }
     }
 
 }
@@ -255,9 +249,9 @@ class DeathListener(private val plugin: MCTeamSpeedRun) : Listener {
                 }
                 .shuffled()
             event.itemsToKeep.clear()
-            event.itemsToKeep.addAll(shuffledInventory.subList(0, shuffledInventory.size / 2))
+            event.itemsToKeep.addAll(shuffledInventory.subList(0, shuffledInventory.size / 4 * 3))
             event.drops.clear()
-            event.drops.addAll(shuffledInventory.subList(shuffledInventory.size / 2, shuffledInventory.size))
+            event.drops.addAll(shuffledInventory.subList(shuffledInventory.size / 4 * 3, shuffledInventory.size))
 
             if (compass != null) {
                 event.itemsToKeep.add(compass)
