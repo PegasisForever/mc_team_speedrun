@@ -6,7 +6,7 @@ plugins {
 }
 
 group = "site.pegasis.mc.team_speedrun"
-version = "1.2"
+version = "1.3"
 
 repositories {
     mavenCentral()
