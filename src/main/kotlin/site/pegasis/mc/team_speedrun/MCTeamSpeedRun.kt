@@ -11,6 +11,7 @@ import org.bukkit.entity.EntityType
 import org.bukkit.entity.Player
 import org.bukkit.event.EventHandler
 import org.bukkit.event.Listener
+import org.bukkit.event.block.BlockBreakEvent
 import org.bukkit.event.entity.EntityDamageByEntityEvent
 import org.bukkit.event.entity.EntityDamageEvent
 import org.bukkit.event.entity.EntityDeathEvent
@@ -30,6 +31,7 @@ import java.util.*
 import kotlin.math.min
 import kotlin.math.pow
 import kotlin.math.roundToInt
+import kotlin.random.Random
 
 open class MCTeamSpeedRun : JavaPlugin(), Listener {
     private val playerCurrentCompassTargetPlayer = hashMapOf<Player, Player>()
@@ -233,12 +235,31 @@ open class MCTeamSpeedRun : JavaPlugin(), Listener {
     }
 
     @EventHandler
-    fun onEnderManDeath(event: EntityDeathEvent) {
-        if (isStarted && event.entity.type == EntityType.ENDERMAN) {
-            event.drops.forEach { itemStack ->
-                if (itemStack.type == Material.ENDER_PEARL) {
+    fun onEntityDeath(event: EntityDeathEvent) {
+        if (isStarted) {
+            fun addOneDrop(type: Material) {
+                val itemStack = event.drops.find { it.type == type }
+                if (itemStack != null) {
                     itemStack.amount++
+                } else {
+                    event.drops.add(ItemStack(type, 1))
                 }
+            }
+            if (event.entity.type == EntityType.ENDERMAN) {
+                addOneDrop(Material.ENDER_PEARL)
+            } else if (event.entity.type == EntityType.BLAZE) {
+                addOneDrop(Material.BLAZE_ROD)
+            }
+        }
+    }
+
+    @EventHandler
+    fun onBreakGravel(event: BlockBreakEvent) {
+        if (isStarted && event.block.type == Material.GRAVEL && event.player.gameMode == GameMode.SURVIVAL) {
+            if (Random.nextInt(0, 10) < 2) {
+                event.isDropItems = false
+                val blockLocation = event.block.location
+                blockLocation.world.dropItemNaturally(blockLocation, ItemStack(Material.FLINT))
             }
         }
     }
