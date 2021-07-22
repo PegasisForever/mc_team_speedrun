@@ -174,30 +174,34 @@ open class MCTeamSpeedRun : JavaPlugin(), Listener {
     }
 
     @EventHandler
-    fun onAttack(event: EntityDamageByEntityEvent) {
+    fun onAttack(event: EntityDamageEvent) {
         if (!isStarted && event.attackerPlayer != null) {
             event.isCancelled = true
         } else if (isStarted) {
             val attackerPlayer = event.attackerPlayer
-            if (attackerPlayer != null) {
-                if (event.entity.type == EntityType.ENDER_CRYSTAL && event.entity.location.world.environment == World.Environment.THE_END) {
-                    onlinePlayers.forEach {
-                        it.sendMessage("${attackerPlayer.team?.color ?: ChatColor.LIGHT_PURPLE}${attackerPlayer.name}${ChatColor.LIGHT_PURPLE} destroyed an ender crystal!")
-                    }
-                } else if (event.entity.type == EntityType.ENDER_DRAGON) {
-                    val df = DecimalFormat("#.##")
-                    df.roundingMode = RoundingMode.HALF_EVEN
-                    val dragonHealthPercent = (event.entity as EnderDragon).run { health / getAttribute(Attribute.GENERIC_MAX_HEALTH)!!.value } * 100
-                    val healthColor = when {
-                        dragonHealthPercent > 70 -> ChatColor.GREEN
-                        dragonHealthPercent > 35 -> ChatColor.YELLOW
-                        else -> ChatColor.RED
-                    }
-                    val healthText = "${healthColor}${df.format(dragonHealthPercent)}%${ChatColor.LIGHT_PURPLE}"
-                    onlinePlayers.forEach {
-                        it.sendMessage("${attackerPlayer.team?.color ?: ChatColor.WHITE}${attackerPlayer.name}${ChatColor.RESET} is attacking the ender dragon! Dragon health: $healthText")
-                    }
+            if (event.entity.type == EntityType.ENDER_CRYSTAL && event.entity.location.world.environment == World.Environment.THE_END) {
+                val message = if (attackerPlayer == null) {
+                    "${ChatColor.LIGHT_PURPLE}Someone destroyed an ender crystal!"
+                } else {
+                    "${attackerPlayer.team?.color ?: ChatColor.LIGHT_PURPLE}${attackerPlayer.name}${ChatColor.LIGHT_PURPLE} destroyed an ender crystal!"
                 }
+                onlinePlayers.forEach { it.sendMessage(message) }
+            } else if (event.entity.type == EntityType.ENDER_DRAGON) {
+                val df = DecimalFormat("#.##")
+                df.roundingMode = RoundingMode.HALF_EVEN
+                val dragonHealthPercent = (event.entity as EnderDragon).run { health / getAttribute(Attribute.GENERIC_MAX_HEALTH)!!.value } * 100
+                val healthColor = when {
+                    dragonHealthPercent > 70 -> ChatColor.GREEN
+                    dragonHealthPercent > 35 -> ChatColor.YELLOW
+                    else -> ChatColor.RED
+                }
+                val healthText = "${healthColor}${df.format(dragonHealthPercent)}%${ChatColor.LIGHT_PURPLE}"
+                val message = if (attackerPlayer == null) {
+                    "Someone is attacking the ender dragon! Dragon health: $healthText"
+                } else {
+                    "${attackerPlayer.team?.color ?: ChatColor.WHITE}${attackerPlayer.name}${ChatColor.RESET} is attacking the ender dragon! Dragon health: $healthText"
+                }
+                onlinePlayers.forEach { it.sendMessage(message) }
             }
         }
     }
@@ -336,13 +340,17 @@ open class MCTeamSpeedRun : JavaPlugin(), Listener {
             return getExpAtLevel(level) + (getExpToLevelUp(level) * exp).roundToInt()
         }
 
-    private val EntityDamageByEntityEvent.attackerPlayer: Player?
+    private val EntityDamageEvent.attackerPlayer: Player?
         get() {
-            val isShoot = cause == EntityDamageEvent.DamageCause.PROJECTILE
-            return if (isShoot) {
-                (((damager as? Arrow)?.shooter) as? Player)
+            return if (this is EntityDamageByEntityEvent) {
+                val isShoot = cause == EntityDamageEvent.DamageCause.PROJECTILE
+                if (isShoot) {
+                    (((damager as? Arrow)?.shooter) as? Player)
+                } else {
+                    damager as? Player
+                }
             } else {
-                damager as? Player
+                null
             }
         }
 }
