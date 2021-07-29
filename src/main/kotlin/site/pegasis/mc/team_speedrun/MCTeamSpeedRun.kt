@@ -113,7 +113,7 @@ open class MCTeamSpeedRun : JavaPlugin(), Listener {
         }
         GlobalScope.launch {
             val jda = getJDA(System.getenv("PEGA_BOT_TOKEN"))
-            println("bot ready!")
+            Bukkit.getLogger().info("bot ready!")
 
             val server = jda.getGuildById("591792031442141204")!!
 
@@ -121,6 +121,7 @@ open class MCTeamSpeedRun : JavaPlugin(), Listener {
                 .get<HttpResponse>("https://api64.ipify.org/")
                 .receive<String>()
             server.getTextChannelById("638419600916086788")!!.sendMessage("IP: `${ip}`").await()
+            jda.shutdown()
         }
     }
 
@@ -384,10 +385,8 @@ open class MCTeamSpeedRun : JavaPlugin(), Listener {
             return getExpAtLevel(level) + (getExpToLevelUp(level) * exp).roundToInt()
         }
 
-    // fixme arrow
     private val EntityDamageEvent.attackerPlayer: Player?
         get() {
-            Bukkit.getLogger().info(this.entity.toString())
             return if (this is EntityDamageByEntityEvent) {
                 val isShoot = cause == EntityDamageEvent.DamageCause.PROJECTILE
                 if (isShoot) {
