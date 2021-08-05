@@ -33,13 +33,11 @@ import org.bukkit.attribute.Attribute
 import org.bukkit.command.Command
 import org.bukkit.command.CommandSender
 import org.bukkit.enchantments.Enchantment
-import org.bukkit.entity.Arrow
-import org.bukkit.entity.EnderDragon
-import org.bukkit.entity.EntityType
-import org.bukkit.entity.Player
+import org.bukkit.entity.*
 import org.bukkit.event.EventHandler
 import org.bukkit.event.Listener
 import org.bukkit.event.block.BlockBreakEvent
+import org.bukkit.event.block.BlockPlaceEvent
 import org.bukkit.event.entity.EntityDamageByEntityEvent
 import org.bukkit.event.entity.EntityDamageEvent
 import org.bukkit.event.entity.EntityDeathEvent
@@ -87,7 +85,7 @@ open class MCTeamSpeedRun : JavaPlugin(), Listener {
                                     compass.itemMeta = (compass.itemMeta as CompassMeta).apply {
                                         lodestone = currentTarget
                                         isLodestoneTracked = false
-                                        setDisplayName("${ChatColor.RESET}${ChatColor.WHITE}Compass: Tracking ${currentTargetPlayer.team?.color ?: ChatColor.WHITE}${currentTargetPlayer.name}")
+                                        setDisplayName("${ChatColor.RESET}${ChatColor.WHITE}Compass: Tracking ${currentTargetPlayer.team?.color ?: ChatColor.WHITE}[${currentTargetPlayer.team?.name}] ${currentTargetPlayer.name}")
                                     }
                                 }
                         }
@@ -112,7 +110,8 @@ open class MCTeamSpeedRun : JavaPlugin(), Listener {
             it.gameMode = GameMode.ADVENTURE
         }
         GlobalScope.launch {
-            val jda = getJDA(System.getenv("PEGA_BOT_TOKEN"))
+            val botToken = System.getenv("PEGA_BOT_TOKEN") ?: return@launch
+            val jda = getJDA(botToken)
             Bukkit.getLogger().info("bot ready!")
 
             val server = jda.getGuildById("591792031442141204")!!
@@ -208,6 +207,13 @@ open class MCTeamSpeedRun : JavaPlugin(), Listener {
     fun onRightClick(event: PlayerInteractEvent) {
         if (isStarted && event.item?.type == Material.COMPASS) {
             nextCompassTarget(event.player)
+        }
+    }
+
+    @EventHandler
+    fun onPlaceBlock(event: BlockPlaceEvent) {
+        if (event.blockPlaced.type == Material.COMPOSTER) {
+            event.isCancelled = true
         }
     }
 
@@ -330,7 +336,7 @@ open class MCTeamSpeedRun : JavaPlugin(), Listener {
         val players = onlinePlayers.clone() as List<Player>
         Collections.rotate(players, rotateOffset)
 
-        val newTargetPlayer = players.find { it.team != null && it.team?.name != player.team?.name }
+        val newTargetPlayer = players.find { it.team != null && it.gameMode == GameMode.SURVIVAL }
         if (newTargetPlayer == null) {
             playerCurrentCompassTargetPlayer.remove(player)
         } else {
@@ -390,7 +396,7 @@ open class MCTeamSpeedRun : JavaPlugin(), Listener {
             return if (this is EntityDamageByEntityEvent) {
                 val isShoot = cause == EntityDamageEvent.DamageCause.PROJECTILE
                 if (isShoot) {
-                    (((damager as? Arrow)?.shooter) as? Player)
+                    (((damager as? AbstractArrow)?.shooter) as? Player)
                 } else {
                     damager as? Player
                 }
