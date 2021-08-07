@@ -1,39 +1,21 @@
 package site.pegasis.mc.team_speedrun
 
-import com.sedmelluq.discord.lavaplayer.player.AudioLoadResultHandler
-import com.sedmelluq.discord.lavaplayer.player.AudioPlayer
-import com.sedmelluq.discord.lavaplayer.player.AudioPlayerManager
-import com.sedmelluq.discord.lavaplayer.player.DefaultAudioPlayerManager
-import com.sedmelluq.discord.lavaplayer.source.AudioSourceManagers
-import com.sedmelluq.discord.lavaplayer.tools.FriendlyException
-import com.sedmelluq.discord.lavaplayer.track.AudioPlaylist
-import com.sedmelluq.discord.lavaplayer.track.AudioTrack
-import com.sedmelluq.discord.lavaplayer.track.playback.AudioFrame
 import io.ktor.client.*
 import io.ktor.client.call.*
 import io.ktor.client.engine.cio.*
 import io.ktor.client.request.*
 import io.ktor.client.statement.*
 import kotlinx.coroutines.GlobalScope
-import kotlinx.coroutines.coroutineScope
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import net.dv8tion.jda.api.JDA
-import net.dv8tion.jda.api.JDABuilder
-import net.dv8tion.jda.api.audio.AudioSendHandler
-import net.dv8tion.jda.api.entities.Activity
-import net.dv8tion.jda.api.entities.Guild
-import net.dv8tion.jda.api.entities.VoiceChannel
-import net.dv8tion.jda.api.events.GenericEvent
-import net.dv8tion.jda.api.events.ReadyEvent
-import net.dv8tion.jda.api.hooks.EventListener
-import net.dv8tion.jda.api.requests.RestAction
 import org.bukkit.*
 import org.bukkit.attribute.Attribute
 import org.bukkit.command.Command
 import org.bukkit.command.CommandSender
 import org.bukkit.enchantments.Enchantment
-import org.bukkit.entity.*
+import org.bukkit.entity.AbstractArrow
+import org.bukkit.entity.EnderDragon
+import org.bukkit.entity.EntityType
+import org.bukkit.entity.Player
 import org.bukkit.event.EventHandler
 import org.bukkit.event.Listener
 import org.bukkit.event.block.BlockBreakEvent
@@ -51,14 +33,9 @@ import org.bukkit.inventory.ItemStack
 import org.bukkit.inventory.meta.CompassMeta
 import org.bukkit.plugin.java.JavaPlugin
 import org.bukkit.scoreboard.Team
-import java.io.File
 import java.math.RoundingMode
-import java.nio.ByteBuffer
 import java.text.DecimalFormat
 import java.util.*
-import kotlin.coroutines.resume
-import kotlin.coroutines.resumeWithException
-import kotlin.coroutines.suspendCoroutine
 import kotlin.math.min
 import kotlin.math.pow
 import kotlin.math.roundToInt
@@ -110,17 +87,20 @@ open class MCTeamSpeedRun : JavaPlugin(), Listener {
             it.gameMode = GameMode.ADVENTURE
         }
         GlobalScope.launch {
-            val botToken = System.getenv("PEGA_BOT_TOKEN") ?: return@launch
-            val jda = getJDA(botToken)
-            Bukkit.getLogger().info("bot ready!")
-
-            val server = jda.getGuildById("591792031442141204")!!
-
-            val ip = HttpClient(CIO)
+            val client = HttpClient(CIO)
+            val ip = client
                 .get<HttpResponse>("https://api64.ipify.org/")
                 .receive<String>()
-            server.getTextChannelById("638419600916086788")!!.sendMessage("IP: `${ip}`").await()
-            jda.shutdown()
+
+            client.post("https://discord.com/api/webhooks/873635802482090066/G2A4sVAxT64MimK-k3TnXpcZBW5ZveN7nOKp7dThhrK1rZ0ZVWC9h0o92OLFpEzV8z2K") {
+                this.body = """
+                    {
+                      "content": "IP: `${ip}`",
+                      "embeds": null
+                    }
+                """
+                this.header("Content-Type", "application/json")
+            }
         }
     }
 
@@ -179,6 +159,7 @@ open class MCTeamSpeedRun : JavaPlugin(), Listener {
             } else {
                 sender.sendMessage("Only a player can use this command!")
             }
+            return true
         }
         return false
     }
@@ -336,7 +317,7 @@ open class MCTeamSpeedRun : JavaPlugin(), Listener {
         val players = onlinePlayers.clone() as List<Player>
         Collections.rotate(players, rotateOffset)
 
-        val newTargetPlayer = players.find { it.team != null && it.gameMode == GameMode.SURVIVAL }
+        val newTargetPlayer = players.find { it.team != null && it.gameMode == GameMode.SURVIVAL && it.name != player.name }
         if (newTargetPlayer == null) {
             playerCurrentCompassTargetPlayer.remove(player)
         } else {
@@ -405,111 +386,3 @@ open class MCTeamSpeedRun : JavaPlugin(), Listener {
             }
         }
 }
-
-
-class AudioPlayerSendHandler(private val audioPlayer: AudioPlayer) : AudioSendHandler {
-    private var lastFrame: AudioFrame? = null
-    override fun canProvide(): Boolean {
-        lastFrame = audioPlayer.provide()
-        return lastFrame != null
-    }
-
-    override fun provide20MsAudio(): ByteBuffer = ByteBuffer.wrap(lastFrame!!.data)
-
-    override fun isOpus() = true
-}
-
-suspend fun getJDA(token: String) = suspendCoroutine<JDA> { cont ->
-    var jda: JDA? = null
-    jda = JDABuilder
-        .createDefault(token)
-        .setActivity(Activity.playing("Pega Speedrun"))
-        .addEventListeners(object : EventListener {
-            override fun onEvent(event: GenericEvent) {
-                if (event is ReadyEvent) {
-                    cont.resume(jda!!)
-                }
-            }
-        })
-        .build()
-}
-
-suspend fun <T> RestAction<T>.await() = suspendCoroutine<T> { cont ->
-    this.queue(
-        { cont.resume(it) },
-        { cont.resumeWithException(it) }
-    )
-}
-
-suspend fun AudioPlayerManager.loadTrack(identifier: String) = suspendCoroutine<AudioTrack> { cont ->
-    loadItem(identifier, object : AudioLoadResultHandler {
-        override fun trackLoaded(track: AudioTrack) = cont.resume(track)
-        override fun playlistLoaded(playlist: AudioPlaylist) = cont.resumeWithException(NotImplementedError("loading playlist is not implemented"))
-        override fun noMatches() = cont.resumeWithException(IllegalStateException("noMatches"))
-        override fun loadFailed(exception: FriendlyException) = cont.resumeWithException(exception)
-    })
-}
-
-suspend fun main() = coroutineScope {
-    val jda = getJDA(System.getenv("PEGA_BOT_TOKEN"))
-    println("bot ready!")
-
-    val server = jda.getGuildById("591792031442141204")!!
-
-    launch {
-        val ip = HttpClient(CIO)
-            .get<HttpResponse>("https://api64.ipify.org/")
-            .receive<String>()
-//        server.getTextChannelById("638419600916086788")!!.sendMessage("IP: `${ip}`").await()
-    }
-
-    val player = server.pegaMusicPlayer
-    val voiceChannel = server.getMemberById("591663117545635870")?.voiceState?.channel ?: server.getVoiceChannelById("638205839571681293")!!
-    player.joinChannel(voiceChannel)
-    player.volume = 0
-    player.startPlay(File("./music.mp3"))
-    launch {
-        for (i in 0..100) {
-            delay(500)
-            player.volume = i
-        }
-    }
-
-    delay(3 * 60 * 1000L)
-    jda.shutdownNow()
-}
-
-class PegaMusicPlayer(private val server: Guild) {
-    var volume = 100
-        set(value) {
-            player.volume = value
-            field = value
-        }
-    private val playerManager = run {
-        val playerManager = DefaultAudioPlayerManager()
-        playerManager.frameBufferDuration = 200
-        playerManager.enableGcMonitoring()
-        AudioSourceManagers.registerLocalSource(playerManager)
-        playerManager
-    }
-    private val player = playerManager.createPlayer()
-
-    fun joinChannel(voiceChannel: VoiceChannel) {
-        server.audioManager.run {
-            openAudioConnection(voiceChannel)
-            sendingHandler = AudioPlayerSendHandler(player)
-        }
-    }
-
-    fun leaveChannel() {
-        server.audioManager.closeAudioConnection()
-    }
-
-    suspend fun startPlay(file: File) {
-        val track = playerManager.loadTrack("./music.mp3")
-        player.playTrack(track)
-    }
-}
-
-val Guild.pegaMusicPlayer: PegaMusicPlayer
-    get() = PegaMusicPlayer(this)

@@ -21,8 +21,6 @@ repositories {
 
 dependencies {
     implementation("com.destroystokyo.paper:paper-api:1.16.1-R0.1-SNAPSHOT")
-    implementation("net.dv8tion:JDA:4.3.0_279")
-    implementation("com.sedmelluq:lavaplayer:1.3.78")
     implementation("ch.qos.logback:logback-classic:1.2.3")
     implementation("io.ktor:ktor-client-core:1.6.1")
     implementation("io.ktor:ktor-client-cio:1.6.1")
