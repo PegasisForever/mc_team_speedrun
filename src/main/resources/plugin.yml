@@ -1,5 +1,5 @@
 main: "site.pegasis.mc.team_speedrun.MCTeamSpeedRun"
-version: "1.3"
+version: "1.4"
 name: "Pega-Team-Speedrun"
 author: "Pegasis"
 api-version: "1.16"
