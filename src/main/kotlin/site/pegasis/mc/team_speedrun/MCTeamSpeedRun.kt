@@ -7,6 +7,9 @@ import io.ktor.client.request.*
 import io.ktor.client.statement.*
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
+import net.luckperms.api.LuckPerms
+import net.luckperms.api.LuckPermsProvider
+import net.luckperms.api.node.types.InheritanceNode
 import org.bukkit.*
 import org.bukkit.attribute.Attribute
 import org.bukkit.command.Command
@@ -45,6 +48,7 @@ open class MCTeamSpeedRun : JavaPlugin(), Listener {
     private val playerCurrentCompassTargetPlayer = hashMapOf<Player, Player>()
     private val onlinePlayers = arrayListOf<Player>()
     private var changeCompassTargetTaskID = -1
+    private lateinit var lp: LuckPerms
 
     var isStarted = false
         set(value) {
@@ -78,13 +82,18 @@ open class MCTeamSpeedRun : JavaPlugin(), Listener {
         }
 
     override fun onEnable() {
+        lp = LuckPermsProvider.get()
         onlinePlayers.addAll(server.onlinePlayers)
         server.pluginManager.registerEvents(this, this)
         server.worlds.forEach {
             it.setGameRule(GameRule.DO_WEATHER_CYCLE, false)
+            it.setGameRule(GameRule.DO_DAYLIGHT_CYCLE, false)
+            it.time = 0
+            it.difficulty = Difficulty.PEACEFUL
         }
         onlinePlayers.forEach {
             it.gameMode = GameMode.ADVENTURE
+            it.allowTP = false
         }
         GlobalScope.launch {
             val client = HttpClient(CIO)
@@ -110,7 +119,9 @@ open class MCTeamSpeedRun : JavaPlugin(), Listener {
                 sender.sendMessage("Speedrun is already started!")
             } else {
                 server.worlds.forEach {
+                    it.setGameRule(GameRule.DO_DAYLIGHT_CYCLE, true)
                     it.time = 0
+                    it.difficulty = Difficulty.EASY
                 }
                 onlinePlayers.forEach { player ->
                     player.reset(true)
@@ -160,6 +171,15 @@ open class MCTeamSpeedRun : JavaPlugin(), Listener {
                 sender.sendMessage("Only a player can use this command!")
             }
             return true
+        } else if (command.name == "quit") {
+            if (sender is Player) {
+                sender.gameMode = GameMode.SPECTATOR
+                sender.allowTP = true
+            } else {
+                sender.sendMessage("Only a player can use this command!")
+            }
+
+            return true
         }
         return false
     }
@@ -168,11 +188,15 @@ open class MCTeamSpeedRun : JavaPlugin(), Listener {
     fun onPlayerJoin(event: PlayerJoinEvent) {
         onlinePlayers.add(event.player)
 
-        if (isStarted) {
-            event.player.sendMessage("Speedrun is in progress!")
-            event.player.gameMode = GameMode.SURVIVAL
-        } else {
-            event.player.gameMode = GameMode.ADVENTURE
+        if (isStarted) event.player.sendMessage("Speedrun is in progress!")
+        if (event.player.gameMode != GameMode.SPECTATOR) {
+            event.player.allowTP = false
+            if (isStarted) {
+                event.player.sendMessage("Speedrun is in progress!")
+                event.player.gameMode = GameMode.SURVIVAL
+            } else {
+                event.player.gameMode = GameMode.ADVENTURE
+            }
         }
     }
 
@@ -370,6 +394,19 @@ open class MCTeamSpeedRun : JavaPlugin(), Listener {
     private val Player.realExp: Int
         get() {
             return getExpAtLevel(level) + (getExpToLevelUp(level) * exp).roundToInt()
+        }
+
+    private var Player.allowTP: Boolean
+        get() = TODO()
+        set(value) {
+            val lpUser = this@MCTeamSpeedRun.lp.userManager.getUser(uniqueId)!!
+            if (value) {
+                lpUser.data().add(InheritanceNode.builder("spectator").build())
+            } else {
+                lpUser.data().clear()
+                lpUser.primaryGroup = "default"
+            }
+            this@MCTeamSpeedRun.lp.userManager.saveUser(lpUser)
         }
 
     private val EntityDamageEvent.attackerPlayer: Player?

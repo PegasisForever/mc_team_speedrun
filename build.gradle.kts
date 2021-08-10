@@ -24,6 +24,7 @@ dependencies {
     implementation("ch.qos.logback:logback-classic:1.2.3")
     implementation("io.ktor:ktor-client-core:1.6.1")
     implementation("io.ktor:ktor-client-cio:1.6.1")
+    compileOnly("net.luckperms:api:5.3")
 }
 
 tasks.withType<KotlinCompile> {

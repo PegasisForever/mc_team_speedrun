@@ -3,6 +3,7 @@ version: "1.3"
 name: "Pega-Team-Speedrun"
 author: "Pegasis"
 api-version: "1.16"
+depend: [LuckPerms]
 
 commands:
   start-speedrun:
@@ -20,6 +21,9 @@ commands:
   get-compass:
     description: Give a compass to the caller.
     permission: team_speedrun.get_compass
+  quit:
+    description: Quit the speedrun.
+    permission: team_speedrun.quit
 
 permissions:
   team_speedrun.*:
@@ -27,4 +31,7 @@ permissions:
     default: op
   team_speedrun.get_compass:
     description: Gives access to get compass.
+    default: true
+  team_speedrun.quit:
+    description: allow players to quit themselves.
     default: true
