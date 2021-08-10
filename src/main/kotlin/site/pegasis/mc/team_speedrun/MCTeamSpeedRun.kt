@@ -96,19 +96,20 @@ open class MCTeamSpeedRun : JavaPlugin(), Listener {
             it.allowTP = false
         }
         GlobalScope.launch {
-            val client = HttpClient(CIO)
-            val ip = client
-                .get<HttpResponse>("https://api64.ipify.org/")
-                .receive<String>()
+            System.getenv("DISCORD_WEBHOOK")?.let { url ->
+                val client = HttpClient(CIO)
+                val ip = client
+                    .get<HttpResponse>("https://api64.ipify.org/")
+                    .receive<String>()
 
-            client.post("https://discord.com/api/webhooks/873635802482090066/G2A4sVAxT64MimK-k3TnXpcZBW5ZveN7nOKp7dThhrK1rZ0ZVWC9h0o92OLFpEzV8z2K") {
-                this.body = """
+                client.post(url) {
+                    this.body = """
                     {
                       "content": "IP: `${ip}`",
                       "embeds": null
-                    }
-                """
-                this.header("Content-Type", "application/json")
+                    }"""
+                    this.header("Content-Type", "application/json")
+                }
             }
         }
     }
