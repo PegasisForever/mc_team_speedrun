@@ -173,11 +173,15 @@ open class MCTeamSpeedRun : JavaPlugin(), Listener {
             }
             return true
         } else if (command.name == "quit") {
-            if (sender is Player) {
-                sender.gameMode = GameMode.SPECTATOR
-                sender.allowTP = true
+            if (!isStarted) {
+                sender.sendMessage("Speedrun is not started yet!")
             } else {
-                sender.sendMessage("Only a player can use this command!")
+                if (sender is Player) {
+                    sender.gameMode = GameMode.SPECTATOR
+                    sender.allowTP = true
+                } else {
+                    sender.sendMessage("Only a player can use this command!")
+                }
             }
 
             return true
