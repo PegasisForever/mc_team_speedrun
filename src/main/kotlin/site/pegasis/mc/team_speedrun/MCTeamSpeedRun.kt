@@ -145,6 +145,11 @@ open class MCTeamSpeedRun : JavaPlugin(), Listener {
             if (isStarted) {
                 sender.sendMessage("Speedrun is already started!")
             } else {
+                server.worlds.forEach {
+                    it.setGameRule(GameRule.DO_DAYLIGHT_CYCLE, true)
+                    it.time = 0
+                    it.difficulty = Difficulty.EASY
+                }
                 onlinePlayers.forEach { player ->
                     nextCompassTarget(player)
                     player.gameMode = GameMode.SURVIVAL
