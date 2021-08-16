@@ -83,7 +83,6 @@ open class MCTeamSpeedRun : JavaPlugin(), Listener {
         }
 
     override fun onEnable() {
-        Bukkit.getLogger().info("awa")
         lp = LuckPermsProvider.get()
         onlinePlayers.addAll(server.onlinePlayers)
         server.pluginManager.registerEvents(this, this)
