@@ -27,6 +27,8 @@ import org.bukkit.event.entity.EntityDamageByEntityEvent
 import org.bukkit.event.entity.EntityDamageEvent
 import org.bukkit.event.entity.EntityDeathEvent
 import org.bukkit.event.entity.PlayerDeathEvent
+import org.bukkit.event.inventory.InventoryClickEvent
+import org.bukkit.event.inventory.InventoryType
 import org.bukkit.event.player.PlayerDropItemEvent
 import org.bukkit.event.player.PlayerInteractEvent
 import org.bukkit.event.player.PlayerJoinEvent
@@ -81,6 +83,7 @@ open class MCTeamSpeedRun : JavaPlugin(), Listener {
         }
 
     override fun onEnable() {
+        Bukkit.getLogger().info("awa")
         lp = LuckPermsProvider.get()
         onlinePlayers.addAll(server.onlinePlayers)
         server.pluginManager.registerEvents(this, this)
@@ -327,6 +330,13 @@ open class MCTeamSpeedRun : JavaPlugin(), Listener {
                 val blockLocation = event.block.location
                 blockLocation.world.dropItemNaturally(blockLocation, ItemStack(Material.FLINT))
             }
+        }
+    }
+
+    @EventHandler
+    fun onInventory(event: InventoryClickEvent) {
+        if (isStarted && event.clickedInventory?.type == InventoryType.BLAST_FURNACE && event.cursor?.type == Material.COMPASS) {
+            event.isCancelled = true
         }
     }
 
