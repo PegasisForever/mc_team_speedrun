@@ -55,10 +55,9 @@ open class MCTeamSpeedRun : JavaPlugin(), Listener {
             if (value) {
                 val changeCompassTarget = {
                     Bukkit.getOnlinePlayers().forEach { player ->
-                        val playerTeam = player.team
                         val currentTargetPlayer = playerCurrentCompassTargetPlayer[player]
                         val currentTarget = currentTargetPlayer?.location
-                        if (playerTeam != null && currentTarget != null) {
+                        if (currentTarget != null) {
                             player.compassTarget = currentTarget
                             player.inventory
                                 .filter { it?.type == Material.COMPASS }
@@ -89,7 +88,6 @@ open class MCTeamSpeedRun : JavaPlugin(), Listener {
             it.setGameRule(GameRule.DO_WEATHER_CYCLE, false)
             it.setGameRule(GameRule.DO_DAYLIGHT_CYCLE, false)
             it.time = 0
-            it.difficulty = Difficulty.PEACEFUL
         }
         onlinePlayers.forEach {
             it.gameMode = GameMode.ADVENTURE
@@ -122,7 +120,6 @@ open class MCTeamSpeedRun : JavaPlugin(), Listener {
                 server.worlds.forEach {
                     it.setGameRule(GameRule.DO_DAYLIGHT_CYCLE, true)
                     it.time = 0
-                    it.difficulty = Difficulty.EASY
                 }
                 onlinePlayers.forEach { player ->
                     player.reset(true)
@@ -148,7 +145,6 @@ open class MCTeamSpeedRun : JavaPlugin(), Listener {
                 server.worlds.forEach {
                     it.setGameRule(GameRule.DO_DAYLIGHT_CYCLE, true)
                     it.time = 0
-                    it.difficulty = Difficulty.EASY
                 }
                 onlinePlayers.forEach { player ->
                     nextCompassTarget(player)
@@ -335,7 +331,6 @@ open class MCTeamSpeedRun : JavaPlugin(), Listener {
     }
 
     private fun nextCompassTarget(player: Player) {
-        if (player.team == null) return
         val currentTargetPlayer = playerCurrentCompassTargetPlayer[player]
         val rotateOffset = if (currentTargetPlayer == null) {
             0
@@ -351,7 +346,7 @@ open class MCTeamSpeedRun : JavaPlugin(), Listener {
         val players = onlinePlayers.clone() as List<Player>
         Collections.rotate(players, rotateOffset)
 
-        val newTargetPlayer = players.find { it.team != null && it.gameMode == GameMode.SURVIVAL && it.name != player.name }
+        val newTargetPlayer = players.find { it.gameMode == GameMode.SURVIVAL && it.name != player.name }
         if (newTargetPlayer == null) {
             playerCurrentCompassTargetPlayer.remove(player)
         } else {
