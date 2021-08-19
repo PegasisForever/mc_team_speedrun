@@ -67,7 +67,7 @@ open class MCTeamSpeedRun : JavaPlugin(), Listener {
                                     compass.itemMeta = (compass.itemMeta as CompassMeta).apply {
                                         lodestone = currentTarget
                                         isLodestoneTracked = false
-                                        setDisplayName("${ChatColor.RESET}${ChatColor.WHITE}Compass: Tracking ${currentTargetPlayer.team?.color ?: ChatColor.WHITE}[${currentTargetPlayer.team?.name}] ${currentTargetPlayer.name}")
+                                        setDisplayName("${ChatColor.RESET}${ChatColor.WHITE}Compass: Tracking ${currentTargetPlayer.nameWithTeam}")
                                     }
                                 }
                         }
@@ -247,7 +247,7 @@ open class MCTeamSpeedRun : JavaPlugin(), Listener {
                 val message = if (attackerPlayer == null) {
                     "${ChatColor.LIGHT_PURPLE}Someone destroyed an ender crystal!"
                 } else {
-                    "${attackerPlayer.team?.color ?: ChatColor.LIGHT_PURPLE}${attackerPlayer.name}${ChatColor.LIGHT_PURPLE} destroyed an ender crystal!"
+                    "${ChatColor.LIGHT_PURPLE}${attackerPlayer.nameWithTeam} ${ChatColor.LIGHT_PURPLE}destroyed an ender crystal!"
                 }
                 onlinePlayers.forEach { it.sendMessage(message) }
             } else if (event.entity.type == EntityType.ENDER_DRAGON) {
@@ -263,7 +263,7 @@ open class MCTeamSpeedRun : JavaPlugin(), Listener {
                 val message = if (attackerPlayer == null) {
                     "Someone is attacking the ender dragon! Dragon health: $healthText"
                 } else {
-                    "${attackerPlayer.team?.color ?: ChatColor.WHITE}${attackerPlayer.name}${ChatColor.RESET} is attacking the ender dragon! Dragon health: $healthText"
+                    "${ChatColor.WHITE}${attackerPlayer.nameWithTeam} ${ChatColor.RESET}is attacking the ender dragon! Dragon health: $healthText"
                 }
                 onlinePlayers.forEach { it.sendMessage(message) }
             }
@@ -404,6 +404,13 @@ open class MCTeamSpeedRun : JavaPlugin(), Listener {
             else -> (4.5 * level.toDouble().pow(2.0) - 162.5 * level + 2220.0).toInt()
         }
     }
+
+    private val Player.nameWithTeam: String
+        get() = if (team != null) {
+            "${team?.color ?: ""}[${team?.name}] $name"
+        } else {
+            name
+        }
 
     private val Player.realExp: Int
         get() {
