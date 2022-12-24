@@ -73,7 +73,8 @@ open class MCTeamSpeedRun : JavaPlugin(), Listener {
                         }
                     }
                 }
-                changeCompassTargetTaskID = server.scheduler.scheduleSyncRepeatingTask(this, changeCompassTarget, 0L, 1L)
+                changeCompassTargetTaskID =
+                    server.scheduler.scheduleSyncRepeatingTask(this, changeCompassTarget, 0L, 1L)
             } else {
                 server.scheduler.cancelTask(changeCompassTargetTaskID)
                 changeCompassTargetTaskID = -1
@@ -124,8 +125,10 @@ open class MCTeamSpeedRun : JavaPlugin(), Listener {
                     it.time = 0
                 }
                 onlinePlayers.forEach { player ->
-                    player.reset(true)
-                    player.teleport(server.worlds[0].spawnLocation)
+                    if (player.gameMode == GameMode.ADVENTURE) {
+                        player.reset(true)
+                        player.teleport(server.worlds[0].spawnLocation)
+                    }
                     nextCompassTarget(player)
                     player.sendMessage("Speedrun started!")
                 }
@@ -150,7 +153,6 @@ open class MCTeamSpeedRun : JavaPlugin(), Listener {
                 }
                 onlinePlayers.forEach { player ->
                     nextCompassTarget(player)
-                    player.gameMode = GameMode.SURVIVAL
                     player.sendMessage("Speedrun resumed!")
                 }
                 isStarted = true
@@ -253,7 +255,8 @@ open class MCTeamSpeedRun : JavaPlugin(), Listener {
             } else if (event.entity.type == EntityType.ENDER_DRAGON) {
                 val df = DecimalFormat("#.##")
                 df.roundingMode = RoundingMode.HALF_EVEN
-                val dragonHealthPercent = (event.entity as EnderDragon).run { health / getAttribute(Attribute.GENERIC_MAX_HEALTH)!!.value } * 100
+                val dragonHealthPercent =
+                    (event.entity as EnderDragon).run { health / getAttribute(Attribute.GENERIC_MAX_HEALTH)!!.value } * 100
                 val healthColor = when {
                     dragonHealthPercent > 70 -> ChatColor.GREEN
                     dragonHealthPercent > 35 -> ChatColor.YELLOW
